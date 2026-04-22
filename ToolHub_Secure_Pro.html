@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ToolHub - Hệ thống Quản lý Web App</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+        }
+        .font-display {
+            font-family: 'Outfit', sans-serif;
+        }
+        
+        /* Optimized Tooltip with Scrollbar */
+        .tooltip-trigger:hover .tooltip {
+            visibility: visible;
+            opacity: 1;
+            transform: translateY(0);
+        }
+        
+        .tooltip {
+            max-height: 200px;
+            overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: #6366f1 #1e293b;
+            transition: all 0.2s ease-out;
+            pointer-events: auto;
+        }
+        
+        /* Chrome, Edge, Safari Scrollbar */
+        .tooltip::-webkit-scrollbar {
+            width: 6px;
+        }
+        .tooltip::-webkit-scrollbar-track {
+            background: #1e293b;
+            border-radius: 10px;
+        }
+        .tooltip::-webkit-scrollbar-thumb {
+            background: #6366f1;
+            border-radius: 10px;
+        }
+        .tooltip::-webkit-scrollbar-thumb:hover {
+            background: #4f46e5;
+        }
+        
+        .line-clamp-1 {
+            display: -webkit-box;
+            -webkit-line-clamp: 1;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        .line-clamp-2 {
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        
+        /* Custom Scrollbar for the page */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        /* Hide scrollbar for category bar */
+        .scrollbar-hide::-webkit-scrollbar {
+            display: none;
+        }
+        .scrollbar-hide {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        display: ['Outfit', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+</head>
+<body>
+    <div id="root"></div>
+
+    <!-- React & Dependencies -->
+    <script type="module">
+        import React, { useState, useEffect, useMemo, useRef } from 'https://esm.sh/react@18';
+        import ReactDOM from 'https://esm.sh/react-dom@18/client';
+        import htm from 'https://esm.sh/htm';
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, query, orderBy } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        const html = htm.bind(React.createElement);
+
+        // Firebase Configuration (Preserved)
+        const firebaseConfig = {
+            apiKey: "AIzaSyB5xxfhPYjm8oRiEUDyC3oK9Qkioey0UyU",
+            authDomain: "mytoolhub-445ef.firebaseapp.com",
+            projectId: "mytoolhub-445ef",
+            storageBucket: "mytoolhub-445ef.firebasestorage.app",
+            messagingSenderId: "1025671542839",
+            appId: "1:1025671542839:web:ff9b69ff4eb3455959a7b2"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // Categories List
+        const CATEGORIES = ["Tất cả", "Đồ họa", "Văn phòng", "Giải trí", "Kỹ thuật", "Học tập", "Khác"];
+
+        // Icons Library (SVG Paths)
+        const Icons = {
+            Plus: () => html`<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>`,
+            Search: () => html`<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>`,
+            Grid: () => html`<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>`,
+            List: () => html`<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>`,
+            Trash: () => html`<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>`,
+            External: () => html`<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>`,
+            X: () => html`<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`,
+            Logo: () => html`<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path></svg>`,
+            Alert: () => html`<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>`,
+            Filter: () => html`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>`,
+            Lock: () => html`<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>`,
+            Shield: () => html`<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>`,
+            
+            // Auto Icons
+            Film: () => html`<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"></rect><line x1="7" y1="2" x2="7" y2="22"></line><line x1="17" y1="2" x2="17" y2="22"></line><line x1="2" y1="12" x2="22" y2="12"></line><line x1="2" y1="7" x2="7" y2="7"></line><line x1="2" y1="17" x2="7" y2="17"></line><line x1="17" y1="17" x2="22" y2="17"></line><line x1="17" y1="7" x2="22" y2="7"></line></svg>`,
+            Image: () => html`<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>`,
+            FileText: () => html`<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>`,
+            Palette: () => html`<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"></path></svg>`,
+            Code: () => html`<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>`,
+            Share2: () => html`<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>`,
+            Music: () => html`<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>`,
+            Link: () => html`<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>`
+        };
+
+        // Smart Icon Selector
+        function getAutoIcon(name, description) {
+            const text = (name + " " + description).toLowerCase();
+            if (text.includes("video") || text.includes("phim") || text.includes("movie") || text.includes("youtube") || text.includes("tiktok") || text.includes("netflix")) return Icons.Film;
+            if (text.includes("ảnh") || text.includes("image") || text.includes("photo") || text.includes("hình") || text.includes("canva") || text.includes("picsum") || text.includes("adobe")) return Icons.Image;
+            if (text.includes("văn bản") || text.includes("doc") || text.includes("text") || text.includes("viết") || text.includes("word") || text.includes("pdf") || text.includes("notion")) return Icons.FileText;
+            if (text.includes("thiết kế") || text.includes("design") || text.includes("vẽ") || text.includes("figma") || text.includes("palette") || text.includes("màu") || text.includes("sketch")) return Icons.Palette;
+            if (text.includes("code") || text.includes("dev") || text.includes("lập trình") || text.includes("github") || text.includes("it") || text.includes("api") || text.includes("stack")) return Icons.Code;
+            if (text.includes("social") || text.includes("mạng xã hội") || text.includes("facebook") || text.includes("zalo") || text.includes("chat") || text.includes("telegram") || text.includes("messenger")) return Icons.Share2;
+            if (text.includes("music") || text.includes("nhạc") || text.includes("audio") || text.includes("âm thanh") || text.includes("spotify") || text.includes("soundcloud")) return Icons.Music;
+            return Icons.Link;
+        }
+
+        function App() {
+            const [apps, setApps] = useState([]);
+            const [viewMode, setViewMode] = useState('grid');
+            const [searchTerm, setSearchTerm] = useState('');
+            const [selectedCategory, setSelectedCategory] = useState('Tất cả');
+            const [isModalOpen, setIsModalOpen] = useState(false);
+            const [newApp, setNewApp] = useState({ name: '', description: '', link: '', category: 'Khác' });
+            const [loading, setLoading] = useState(true);
+
+            // Password Security State
+            const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+            const [passwordInput, setPasswordInput] = useState('');
+            const [passwordError, setPasswordError] = useState('');
+            const [pendingAction, setPendingAction] = useState(null); // { type: 'add' | 'delete', data: any }
+
+            const MASTER_PASSWORD = "0977889090";
+            const passwordInputRef = useRef(null);
+
+            useEffect(() => {
+                const q = query(collection(db, 'apps'), orderBy('createdAt', 'desc'));
+                const unsubscribe = onSnapshot(q, (snapshot) => {
+                    const appsData = snapshot.docs.map(doc => ({
+                        id: doc.id,
+                        ...doc.data()
+                    }));
+                    setApps(appsData);
+                    setLoading(false);
+                });
+                return () => unsubscribe();
+            }, []);
+
+            useEffect(() => {
+                if (isPasswordModalOpen && passwordInputRef.current) {
+                    passwordInputRef.current.focus();
+                }
+            }, [isPasswordModalOpen]);
+
+            const filteredApps = useMemo(() => {
+                return apps.filter(app => {
+                    const matchesSearch = app.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                        app.description.toLowerCase().includes(searchTerm.toLowerCase());
+                    const matchesCategory = selectedCategory === 'Tất cả' || app.category === selectedCategory;
+                    return matchesSearch && matchesCategory;
+                });
+            }, [apps, searchTerm, selectedCategory]);
+
+            const triggerAddWithPassword = (e) => {
+                e.preventDefault();
+                if (!newApp.name || !newApp.link) return;
+                setPendingAction({ type: 'add', data: newApp });
+                setIsPasswordModalOpen(true);
+            };
+
+            const triggerDeleteWithPassword = (id) => {
+                setPendingAction({ type: 'delete', data: id });
+                setIsPasswordModalOpen(true);
+            };
+
+            const handlePasswordConfirm = async (e) => {
+                if (e) e.preventDefault();
+                
+                if (passwordInput === MASTER_PASSWORD) {
+                    try {
+                        if (pendingAction.type === 'add') {
+                            let formattedLink = pendingAction.data.link;
+                            if (!/^https?:\/\//i.test(formattedLink)) {
+                                formattedLink = 'https://' + formattedLink;
+                            }
+                            await addDoc(collection(db, 'apps'), {
+                                ...pendingAction.data,
+                                link: formattedLink,
+                                createdAt: Date.now()
+                            });
+                            setNewApp({ name: '', description: '', link: '', category: 'Khác' });
+                            setIsModalOpen(false);
+                        } else if (pendingAction.type === 'delete') {
+                            await deleteDoc(doc(db, 'apps', pendingAction.data));
+                        }
+                        
+                        closePasswordModal();
+                    } catch (error) {
+                        console.error("Action error: ", error);
+                        alert("Có lỗi xảy ra khi thực hiện thao tác.");
+                    }
+                } else {
+                    setPasswordError("Mật khẩu không chính xác!");
+                    setPasswordInput('');
+                }
+            };
+
+            const closePasswordModal = () => {
+                setIsPasswordModalOpen(false);
+                setPasswordInput('');
+                setPasswordError('');
+                setPendingAction(null);
+            };
+
+            return html`
+                <div className="min-h-screen flex flex-col">
+                    <!-- Header -->
+                    <header className="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
+                        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-indigo-200">
+                                    <${Icons.Logo} />
+                                </div>
+                                <h1 className="text-2xl font-display font-bold text-slate-900 tracking-tight">
+                                    Tool<span className="text-indigo-600">Hub</span> <span className="text-[10px] font-sans bg-indigo-100 text-indigo-600 px-2 py-0.5 rounded-full ml-1 propercase font-bold tracking-wider">Doan Kan</span>
+                                </h1>
+                            </div>
+
+                            <div className="flex items-center gap-4">
+                                <div className="relative hidden md:block">
+                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+                                        <${Icons.Search} />
+                                    </span>
+                                    <input 
+                                        type="text" 
+                                        placeholder="Tìm kiếm ứng dụng..." 
+                                        className="pl-10 pr-4 py-2 bg-slate-100 border-transparent focus:bg-white focus:ring-2 focus:ring-indigo-500 rounded-lg w-64 transition-all outline-none text-sm"
+                                        value=${searchTerm}
+                                        onChange=${(e) => setSearchTerm(e.target.value)}
+                                    />
+                                </div>
+                                <button 
+                                    onClick=${() => setIsModalOpen(true)}
+                                    className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2 transition-colors shadow-md shadow-indigo-100"
+                                >
+                                    <${Icons.Plus} />
+                                    <span className="hidden sm:inline">Thêm Web App</span>
+                                </button>
+                            </div>
+                        </div>
+                    </header>
+
+                    <main className="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                        <!-- Category Filter Bar -->
+                        <div className="mb-8 overflow-x-auto pb-2 scrollbar-hide">
+                            <div className="flex items-center gap-2 min-w-max">
+                                <span className="text-slate-400 mr-2"><${Icons.Filter} /></span>
+                                ${CATEGORIES.map(cat => html`
+                                    <button 
+                                        key=${cat}
+                                        onClick=${() => setSelectedCategory(cat)}
+                                        className=${`px-4 py-2 rounded-full text-sm font-medium transition-all ${selectedCategory === cat ? 'bg-indigo-600 text-white shadow-md' : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'}`}
+                                    >
+                                        ${cat}
+                                    </button>
+                                `)}
+                            </div>
+                        </div>
+
+                        <!-- Controls -->
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+                            <div>
+                                <h2 className="text-lg font-semibold text-slate-800">
+                                    ${selectedCategory === 'Tất cả' ? 'Tất cả ứng dụng' : `Nhóm: ${selectedCategory}`}
+                                </h2>
+                                <p className="text-sm text-slate-500">Tìm thấy ${filteredApps.length} ứng dụng</p>
+                            </div>
+
+                            <div className="flex items-center gap-2 bg-white p-1 rounded-lg border border-slate-200 shadow-sm self-start">
+                                <button 
+                                    onClick=${() => setViewMode('grid')}
+                                    className=${`p-2 rounded-md transition-all ${viewMode === 'grid' ? 'bg-indigo-50 text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}
+                                    title="Lưới"
+                                >
+                                    <${Icons.Grid} />
+                                </button>
+                                <button 
+                                    onClick=${() => setViewMode('list')}
+                                    className=${`p-2 rounded-md transition-all ${viewMode === 'list' ? 'bg-indigo-50 text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}
+                                    title="Danh sách"
+                                >
+                                    <${Icons.List} />
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Search for mobile -->
+                        <div className="md:hidden mb-6">
+                            <div className="relative">
+                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+                                    <${Icons.Search} />
+                                </span>
+                                <input 
+                                    type="text" 
+                                    placeholder="Tìm kiếm ứng dụng..." 
+                                    className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 focus:ring-2 focus:ring-indigo-500 rounded-xl outline-none text-sm shadow-sm"
+                                    value=${searchTerm}
+                                    onChange=${(e) => setSearchTerm(e.target.value)}
+                                />
+                            </div>
+                        </div>
+
+                        ${loading ? html`
+                            <div className="flex flex-col items-center justify-center py-20">
+                                <div className="w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
+                                <p className="mt-4 text-slate-500 font-medium">Đang tải dữ liệu...</p>
+                            </div>
+                        ` : filteredApps.length === 0 ? html`
+                            <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl border-2 border-dashed border-slate-200">
+                                <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center text-slate-300 mb-4">
+                                    <${Icons.Search} size="32" />
+                                </div>
+                                <h3 className="text-lg font-medium text-slate-900">Không tìm thấy ứng dụng nào</h3>
+                                <p className="text-slate-500 mt-1">Hãy thử chọn nhóm khác hoặc thêm ứng dụng mới</p>
+                            </div>
+                        ` : html`
+                            <div className=${viewMode === 'grid' 
+                                ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6" 
+                                : "flex flex-col gap-4"
+                            }>
+                                ${filteredApps.map((app) => {
+                                    const AutoIcon = getAutoIcon(app.name, app.description);
+                                    return html`
+                                        <div key=${app.id} className="group relative">
+                                            ${viewMode === 'grid' ? html`
+                                                <div className="bg-white rounded-2xl border border-slate-200 p-5 hover:border-indigo-300 hover:shadow-xl hover:shadow-indigo-500/5 transition-all duration-300 h-full flex flex-col">
+                                                    <div className="flex justify-between items-start mb-4">
+                                                        <div className="w-12 h-12 bg-slate-50 rounded-xl flex items-center justify-center text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-colors duration-300">
+                                                            <${AutoIcon} />
+                                                        </div>
+                                                        <div className="flex flex-col items-end gap-2">
+                                                            <button 
+                                                                onClick=${(e) => { e.stopPropagation(); triggerDeleteWithPassword(app.id); }}
+                                                                className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                                                                title="Xóa"
+                                                            >
+                                                                <${Icons.Trash} />
+                                                            </button>
+                                                            <span className="text-[10px] font-bold px-2 py-0.5 bg-slate-100 text-slate-500 rounded-full uppercase tracking-tight">
+                                                                ${app.category || 'Khác'}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    <div className="flex-grow cursor-pointer" onClick=${() => window.open(app.link, '_blank')}>
+                                                        <h3 className="text-lg font-bold text-slate-900 mb-2 group-hover:text-indigo-600 transition-colors line-clamp-1">${app.name}</h3>
+                                                        <div className="relative tooltip-trigger">
+                                                            <p className="text-sm text-slate-500 line-clamp-2 mb-4">${app.description || "Không có mô tả"}</p>
+                                                            ${app.description && html`
+                                                                <div className="tooltip invisible opacity-0 absolute top-full left-0 mt-2 w-full min-w-[260px] p-4 bg-slate-900 text-white text-xs rounded-xl shadow-2xl z-50 transition-all duration-200 translate-y-1">
+                                                                    <div className="font-bold border-b border-white/10 pb-2 mb-2 text-indigo-400 flex items-center justify-between sticky top-0 bg-slate-900">
+                                                                        <span>Mô tả chi tiết</span>
+                                                                        <span className="text-[10px] text-slate-500 font-normal">Kéo để xem thêm</span>
+                                                                    </div>
+                                                                    <div className="whitespace-pre-wrap leading-relaxed">
+                                                                        ${app.description}
+                                                                    </div>
+                                                                    <div className="absolute bottom-full left-6 border-8 border-transparent border-b-slate-900"></div>
+                                                                </div>
+                                                            `}
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
+                                                        <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wider truncate max-w-[120px]">
+                                                            ${new URL(app.link).hostname}
+                                                        </span>
+                                                        <button 
+                                                            onClick=${() => window.open(app.link, '_blank')}
+                                                            className="text-indigo-600 hover:text-indigo-700 font-semibold text-sm flex items-center gap-1"
+                                                        >
+                                                            Mở <${Icons.External} />
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            ` : html`
+                                                <div className="bg-white rounded-xl border border-slate-200 p-4 hover:border-indigo-300 hover:shadow-md transition-all flex items-center gap-4 group">
+                                                    <div className="w-12 h-12 bg-slate-50 rounded-lg flex items-center justify-center text-indigo-600 shrink-0">
+                                                        <${AutoIcon} />
+                                                    </div>
+                                                    <div className="flex-grow min-w-0 cursor-pointer" onClick=${() => window.open(app.link, '_blank')}>
+                                                        <div className="flex items-center gap-2 mb-0.5">
+                                                            <h3 className="font-bold text-slate-900 truncate group-hover:text-indigo-600 transition-colors">${app.name}</h3>
+                                                            <span className="text-[9px] font-bold px-1.5 py-0.5 bg-slate-100 text-slate-400 rounded uppercase">
+                                                                ${app.category || 'Khác'}
+                                                            </span>
+                                                        </div>
+                                                        <div className="relative tooltip-trigger inline-block max-w-full">
+                                                            <p className="text-sm text-slate-500 truncate">${app.description || "Không có mô tả"}</p>
+                                                            ${app.description && html`
+                                                                <div className="tooltip invisible opacity-0 absolute top-full left-0 mt-2 w-64 p-4 bg-slate-900 text-white text-xs rounded-xl shadow-2xl z-50 transition-all duration-200 translate-y-1">
+                                                                    <div className="font-bold border-b border-white/10 pb-2 mb-2 text-indigo-400 sticky top-0 bg-slate-900">Mô tả chi tiết</div>
+                                                                    <div className="whitespace-pre-wrap leading-relaxed">
+                                                                        ${app.description}
+                                                                    </div>
+                                                                    <div className="absolute bottom-full left-6 border-8 border-transparent border-b-slate-900"></div>
+                                                                </div>
+                                                            `}
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex items-center gap-3 shrink-0">
+                                                        <button 
+                                                            onClick=${() => window.open(app.link, '_blank')}
+                                                            className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
+                                                            title="Mở"
+                                                        >
+                                                            <${Icons.External} size="20" />
+                                                        </button>
+                                                    </div>
+                                                    <button 
+                                                        onClick=${(e) => { e.stopPropagation(); triggerDeleteWithPassword(app.id); }}
+                                                        className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                                                        title="Xóa"
+                                                    >
+                                                        <${Icons.Trash} size="20" />
+                                                    </button>
+                                                </div>
+                                            `}
+                                        </div>
+                                    `;
+                                })}
+                            </div>
+                        `}
+                    </main>
+
+                    <!-- Footer -->
+                    <footer className="bg-white border-t border-slate-200 py-8">
+                        <div className="max-w-7xl mx-auto px-4 text-center">
+                            <p className="text-slate-500 text-sm font-medium">
+                                © 2026 Bản quyền được thực hiện bởi <span className="text-indigo-600 font-bold">Doan Kan</span>
+                            </p>
+                        </div>
+                    </footer>
+
+                    <!-- Add Modal -->
+                    ${isModalOpen && html`
+                        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                            <div 
+                                onClick=${() => setIsModalOpen(false)}
+                                className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
+                            />
+                            <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+                                <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+                                    <h2 className="text-xl font-display font-bold text-slate-900">Thêm Web App mới</h2>
+                                    <button 
+                                        onClick=${() => setIsModalOpen(false)}
+                                        className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-all"
+                                    >
+                                        <${Icons.X} />
+                                    </button>
+                                </div>
+                                
+                                <form onSubmit=${triggerAddWithPassword} className="p-6 space-y-4">
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="col-span-2">
+                                            <label className="block text-sm font-semibold text-slate-700 mb-1">Tên ứng dụng</label>
+                                            <input 
+                                                required
+                                                type="text" 
+                                                placeholder="Ví dụ: Google Search"
+                                                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white outline-none transition-all"
+                                                value=${newApp.name}
+                                                onInput=${(e) => setNewApp({...newApp, name: e.target.value})}
+                                            />
+                                        </div>
+                                        <div className="col-span-2">
+                                            <label className="block text-sm font-semibold text-slate-700 mb-1">Nhóm chức năng</label>
+                                            <select 
+                                                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white outline-none transition-all"
+                                                value=${newApp.category}
+                                                onChange=${(e) => setNewApp({...newApp, category: e.target.value})}
+                                            >
+                                                ${CATEGORIES.filter(c => c !== 'Tất cả').map(cat => html`
+                                                    <option key=${cat} value=${cat}>${cat}</option>
+                                                `)}
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-semibold text-slate-700 mb-1">Mô tả (không bắt buộc)</label>
+                                        <textarea 
+                                            placeholder="Nhập mô tả ngắn gọn về ứng dụng..."
+                                            className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white outline-none transition-all h-24 resize-none"
+                                            value=${newApp.description}
+                                            onInput=${(e) => setNewApp({...newApp, description: e.target.value})}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-semibold text-slate-700 mb-1">Đường dẫn (Link)</label>
+                                        <input 
+                                            required
+                                            type="text" 
+                                            placeholder="https://example.com"
+                                            className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white outline-none transition-all"
+                                            value=${newApp.link}
+                                            onInput=${(e) => setNewApp({...newApp, link: e.target.value})}
+                                        />
+                                        <p className="mt-1.5 flex items-center gap-1 text-[11px] text-slate-400">
+                                            <${Icons.Alert} />
+                                            Hệ thống sẽ tự động thêm https:// nếu thiếu
+                                        </p>
+                                    </div>
+                                    
+                                    <div className="pt-4 flex gap-3">
+                                        <button 
+                                            type="button"
+                                            onClick=${() => setIsModalOpen(false)}
+                                            className="flex-1 px-4 py-3 border border-slate-200 text-slate-600 font-semibold rounded-xl hover:bg-slate-50 transition-all"
+                                        >
+                                            Hủy
+                                        </button>
+                                        <button 
+                                            type="submit"
+                                            className="flex-1 px-4 py-3 bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-700 shadow-lg shadow-indigo-200 transition-all flex items-center justify-center gap-2"
+                                        >
+                                            <${Icons.Lock} /> Lưu ứng dụng
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    `}
+
+                    <!-- Password Modal -->
+                    ${isPasswordModalOpen && html`
+                        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                            <div 
+                                onClick=${closePasswordModal}
+                                className="absolute inset-0 bg-slate-900/80 backdrop-blur-md"
+                            />
+                            <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden border border-slate-100">
+                                <div className="p-8 text-center">
+                                    <div className="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-inner">
+                                        <${Icons.Shield} />
+                                    </div>
+                                    <h2 className="text-2xl font-display font-bold text-slate-900 mb-2">Xác thực bảo mật</h2>
+                                    <p className="text-slate-500 text-sm mb-8">
+                                        Vui lòng nhập mật khẩu để thực hiện thao tác ${pendingAction?.type === 'add' ? 'thêm' : 'xóa'} ứng dụng.
+                                    </p>
+                                    
+                                    <form onSubmit=${handlePasswordConfirm} className="space-y-6">
+                                        <div className="relative">
+                                            <input 
+                                                ref=${passwordInputRef}
+                                                required
+                                                type="password" 
+                                                placeholder="••••••••"
+                                                className=${`w-full px-5 py-4 bg-slate-50 border ${passwordError ? 'border-red-500 ring-red-100' : 'border-slate-200 ring-indigo-100'} rounded-2xl focus:ring-4 focus:bg-white outline-none transition-all text-center text-xl tracking-[0.5em] font-bold`}
+                                                value=${passwordInput}
+                                                onInput=${(e) => { setPasswordInput(e.target.value); setPasswordError(''); }}
+                                            />
+                                            ${passwordError && html`
+                                                <p className="text-red-500 text-xs mt-2 font-semibold flex items-center justify-center gap-1">
+                                                    <${Icons.Alert} /> ${passwordError}
+                                                </p>
+                                            `}
+                                        </div>
+                                        
+                                        <div className="flex gap-3">
+                                            <button 
+                                                type="button"
+                                                onClick=${closePasswordModal}
+                                                className="flex-1 px-4 py-4 text-slate-500 font-bold rounded-2xl hover:bg-slate-50 transition-all"
+                                            >
+                                                Hủy
+                                            </button>
+                                            <button 
+                                                type="submit"
+                                                className="flex-1 px-4 py-4 bg-indigo-600 text-white font-bold rounded-2xl hover:bg-indigo-700 shadow-xl shadow-indigo-200 transition-all"
+                                            >
+                                                Xác nhận
+                                            </button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    `}
+                </div>
+            `;
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(React.createElement(App));
+    </script>
+</body>
+</html>
